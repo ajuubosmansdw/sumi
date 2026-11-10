@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f6f5f2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121212" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Sumi">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.json">
+<title>Sumi</title>
+<style>
+:root{
+  --bg:#f6f5f2;--card:#fff;--ink:#1b1b1b;--muted:#77736c;--line:#e6e3dd;
+  --accent:#1b1b1b;--accent-ink:#fff;--good:#2f7d4f;--ok:#a8741a;--bad:#b23a3a;--soft:#efede8;
+  --r:16px;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#121212;--card:#1c1c1c;--ink:#f1efea;--muted:#9a968e;--line:#2c2c2c;
+  --accent:#f1efea;--accent-ink:#121212;--good:#5fbf86;--ok:#d9a646;--bad:#e06b6b;--soft:#242424;
+}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink)}
+body{font:16px/1.45 -apple-system,BlinkMacSystemFont,"Hiragino Sans","Helvetica Neue",sans-serif;
+  padding:env(safe-area-inset-top) 0 calc(72px + env(safe-area-inset-bottom));min-height:100vh}
+.jp{font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif}
+main{max-width:520px;margin:0 auto;padding:16px}
+h1{font-size:28px;margin:8px 0 4px;letter-spacing:-.02em}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:24px 0 8px;font-weight:600}
+.sub{color:var(--muted);font-size:14px;margin:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px}
+.row{display:flex;gap:10px;align-items:center}
+.between{justify-content:space-between}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+.btn{display:block;width:100%;padding:15px 16px;border-radius:14px;background:var(--accent);color:var(--accent-ink);font-weight:600;font-size:17px}
+.btn.ghost{background:var(--soft);color:var(--ink)}
+.btn:disabled{opacity:.4}
+.btn.sm{display:inline-block;width:auto;padding:9px 14px;font-size:15px}
+.stack>*+*{margin-top:10px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+.stat{background:var(--soft);border-radius:12px;padding:10px;text-align:center}
+.stat b{display:block;font-size:20px}
+.stat span{font-size:12px;color:var(--muted)}
+.pack{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.pack:last-child{border-bottom:0}
+.bar{height:4px;background:var(--soft);border-radius:2px;overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;background:var(--good)}
+.toggle{width:46px;height:28px;border-radius:14px;background:var(--line);position:relative;flex:none;transition:.15s}
+.toggle::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:.15s;box-shadow:0 1px 2px #0003}
+.toggle.on{background:var(--good)}.toggle.on::after{left:21px}
+nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom);z-index:5}
+nav button{flex:1;padding:12px 0 10px;font-size:12px;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px}
+nav button.on{color:var(--ink);font-weight:600}
+nav .ic{font-size:20px;line-height:1}
+.mission li{margin:6px 0}
+.mission label{display:flex;gap:10px;align-items:flex-start}
+.mission input{width:20px;height:20px;margin-top:2px;accent-color:var(--good)}
+
+/* session */
+.top{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.top .bar{flex:1;margin:0;height:6px}
+.x{font-size:22px;color:var(--muted);padding:4px 8px}
+.tag{display:inline-block;font-size:12px;color:var(--muted);background:var(--soft);padding:3px 9px;border-radius:99px}
+.prompt{font-size:24px;font-weight:600;margin:14px 0 4px;line-height:1.3}
+.big-jp{font-size:30px;font-weight:600;margin:6px 0 2px;line-height:1.35}
+.kana{font-size:18px;color:var(--ink);margin:2px 0;word-spacing:.25em}
+.romaji{font-size:15px;color:var(--muted);margin:2px 0}
+.hint{background:var(--soft);border-radius:12px;padding:12px 14px;margin-top:12px;font-size:18px}
+.hint small{display:block;color:var(--muted);font-size:12px;margin-bottom:2px}
+.play{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--soft);border-radius:99px;padding:10px 16px;font-weight:600}
+.play.huge{width:96px;height:96px;font-size:34px;padding:0;margin:20px auto;display:flex;background:var(--accent);color:var(--accent-ink)}
+.opts{display:grid;gap:8px;margin-top:14px}
+.opt{text-align:left;padding:14px 16px;border-radius:12px;border:1px solid var(--line);background:var(--card);font-size:16px}
+.opt.right{border-color:var(--good);background:color-mix(in srgb,var(--good) 12%,var(--card))}
+.opt.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 12%,var(--card))}
+.grade{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+.grade button{padding:14px 6px;border-radius:12px;font-weight:600;font-size:15px;background:var(--soft)}
+.grade .g0{color:var(--bad)}.grade .g1{color:var(--ok)}.grade .g2{color:var(--good)}
+.verdict{font-weight:700;margin-top:14px}
+.verdict.good{color:var(--good)}.verdict.bad{color:var(--bad)}
+.reply{border-left:3px solid var(--good);padding:6px 0 6px 12px;margin-top:14px}
+.reply small{color:var(--muted);font-size:12px;display:block}
+.note{font-size:13px;color:var(--muted);margin-top:10px}
+input[type=text],textarea,select{width:100%;font:inherit;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+label.f{display:block;font-size:13px;color:var(--muted);margin:12px 0 4px}
+.seg{display:flex;background:var(--soft);border-radius:12px;padding:3px}
+.seg button{flex:1;padding:9px;border-radius:10px;font-size:14px}
+.seg button.on{background:var(--card);font-weight:600;box-shadow:0 1px 2px #0002}
+.phrase{display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.phrase:last-child{border-bottom:0}
+.phrase .t{flex:1;min-width:0}
+.phrase .en{font-size:14px;color:var(--muted)}
+.phrase .ja{font-size:18px}
+.dot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--line)}
+.dot.l1{background:var(--ok)}.dot.l2{background:var(--good)}
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin:0 -16px;padding-left:16px;padding-right:16px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{white-space:nowrap;padding:7px 12px;border-radius:99px;background:var(--soft);font-size:14px}
+.chip.on{background:var(--accent);color:var(--accent-ink)}
+.del{color:var(--bad);font-size:13px}
+.center{text-align:center}
+.miss li{margin:4px 0}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<main id="app"></main>
+<nav id="nav">
+  <button data-tab="home" class="on"><span class="ic">墨</span>Practice</button>
+  <button data-tab="book"><span class="ic">📖</span>Phrasebook</button>
+  <button data-tab="add"><span class="ic">＋</span>Add</button>
+  <button data-tab="settings"><span class="ic">⚙︎</span>Settings</button>
+</nav>
+<script src="cards.js"></script>
+<script>
+"use strict";
+// ───────── storage ─────────
+const KEY = "sumi.v1";
+const DAY = 864e5;
+function load(){
+  try{ const s = JSON.parse(localStorage.getItem(KEY)); if(s) return s; }catch(e){}
+  return null;
+}
+let S = load() || {
+  p:{}, mine:[], log:{}, recent:[], mission:{date:"",ids:[],done:[]},
+  set:{rate:0.9, romaji:true, kanji:true, voice:"", packs:{}, perSession:15}
+};
+S.set.packs = S.set.packs || {};
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+
+const allCards = () => CARDS.concat(S.mine);
+const byId = id => allCards().find(c => c.id === id);
+const packOn = p => S.set.packs[p] !== false;
+const prog = id => S.p[id] || (S.p[id] = {box:0,due:0,seen:0,right:0,wrong:0});
+
+// day boundary at 4am local
+function dayKey(t=Date.now()){ const d=new Date(t-4*3600e3); return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate(); }
+function startOfNextDay(n=1){ const d=new Date(Date.now()-4*3600e3); d.setHours(4,0,0,0); return d.getTime()+n*DAY; }
+const INTERVAL = [1,1,3,7,14,30]; // days, indexed by box
+
+// ───────── romaji ─────────
+const R = {あ:"a",い:"i",う:"u",え:"e",お:"o",か:"ka",き:"ki",く:"ku",け:"ke",こ:"ko",さ:"sa",し:"shi",す:"su",せ:"se",そ:"so",
+た:"ta",ち:"chi",つ:"tsu",て:"te",と:"to",な:"na",に:"ni",ぬ:"nu",ね:"ne",の:"no",は:"ha",ひ:"hi",ふ:"fu",へ:"he",ほ:"ho",
+ま:"ma",み:"mi",む:"mu",め:"me",も:"mo",や:"ya",ゆ:"yu",よ:"yo",ら:"ra",り:"ri",る:"ru",れ:"re",ろ:"ro",わ:"wa",を:"o",ん:"n",
+が:"ga",ぎ:"gi",ぐ:"gu",げ:"ge",ご:"go",ざ:"za",じ:"ji",ず:"zu",ぜ:"ze",ぞ:"zo",だ:"da",ぢ:"ji",づ:"zu",で:"de",ど:"do",
+ば:"ba",び:"bi",ぶ:"bu",べ:"be",ぼ:"bo",ぱ:"pa",ぴ:"pi",ぷ:"pu",ぺ:"pe",ぽ:"po",ぁ:"a",ぃ:"i",ぅ:"u",ぇ:"e",ぉ:"o",ゔ:"vu"};
+const Y = {ゃ:"a",ゅ:"u",ょ:"o"};
+function toHira(s){ return s.replace(/[ァ-ヶ]/g, c=>String.fromCharCode(c.charCodeAt(0)-0x60)); }
+function romaji(kana){
+  return toHira(kana).replace(/([、。？！])(?=\S)/g,"$1 ").trim().split(/\s+/).map(w=>{
+    const bare=w.replace(/[、。？！]/g,"");
+    if(bare==="は") return w.replace("は","wa").replace("？","?").replace("。",".").replace("、",",").replace("！","!"); if(bare==="へ") return "e";
+    let out="", i=0;
+    while(i<w.length){
+      const c=w[i], n=w[i+1];
+      if(c==="っ"){ const nx=wordRom(w.slice(i+1)); out += nx.startsWith("ch")?"t":(nx[0]||""); i++; continue; }
+      if(c==="ー"){ out += (out.match(/[aeiou](?!.*[aeiou])/)||[""])[0]; i++; continue; }
+      if(c==="ん"){ out += (n && /[あいうえおやゆよ]/.test(n)) ? "n'" : "n"; i++; continue; }
+      if(n && Y[n] && R[c]){ const b=R[c]; out += (/^(shi|chi|ji)$/.test(b)? b.slice(0,-1) : b.slice(0,-1)+"y") + Y[n]; i+=2; continue; }
+      if(R[c]!==undefined){ out+=R[c]; i++; continue; }
+      if(c==="、") { out+=","; i++; continue; }
+      if(c==="。") { out+="."; i++; continue; }
+      if(c==="？") { out+="?"; i++; continue; }
+      if(c==="！") { out+="!"; i++; continue; }
+      out+=c; i++;
+    }
+    return out;
+  }).join(" ").replace(/ ([.,?!])/g,"$1");
+  function wordRom(s){ return romaji(s); }
+}
+
+// ───────── speech ─────────
+let voice=null;
+function pickVoice(){
+  const vs = speechSynthesis.getVoices().filter(v=>/^ja/i.test(v.lang));
+  voice = vs.find(v=>v.name===S.set.voice) || vs.find(v=>/premium|enhanced/i.test(v.name)) || vs.find(v=>/kyoko|o-ren|otoya/i.test(v.name)) || vs[0] || null;
+  return vs;
+}
+if("speechSynthesis" in window){ pickVoice(); speechSynthesis.onvoiceschanged = ()=>{ pickVoice(); if(tab==="settings" && !session) render(); }; }
+function say(text, slow){
+  if(!("speechSynthesis" in window)) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang="ja-JP"; if(voice) u.voice=voice;
+  u.rate = slow ? 0.6 : S.set.rate;
+  speechSynthesis.speak(u);
+}
+
+// ───────── helpers ─────────
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const shuffle = a => { for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]];} return a; };
+function jpBlock(c, size="big-jp"){
+  return `<div class="${size} jp">${esc(S.set.kanji?c.ja:toHira(c.kana).replace(/\s/g,""))}</div>
+    ${S.set.kanji && c.ja.replace(/[\s]/g,"")!==c.kana.replace(/[\s]/g,"")?`<div class="kana jp">${esc(c.kana)}</div>`:""}
+    ${S.set.romaji?`<div class="romaji">${esc(romaji(c.kana))}</div>`:""}`;
+}
+function accuracy(){ const r=S.recent.slice(-30); return r.length? r.filter(Boolean).length/r.length : null; }
+function streak(){
+  let n=0; for(let k=0;k<400;k++){ const key=dayKey(Date.now()-k*DAY); if(S.log[key]&&S.log[key].n>0) n++; else if(k>0) break; } return n;
+}
+
+// ───────── session building ─────────
+function dueCards(){
+  const now=Date.now();
+  return allCards().filter(c=>packOn(c.pack) && S.p[c.id] && S.p[c.id].seen && S.p[c.id].due<=now)
+    .sort((a,b)=>S.p[a.id].due-S.p[b.id].due);
+}
+function newCards(){
+  // round-robin across packs so new material is interleaved
+  const by={}; allCards().filter(c=>packOn(c.pack) && !(S.p[c.id]&&S.p[c.id].seen)).forEach(c=>(by[c.pack]=by[c.pack]||[]).push(c));
+  const out=[], keys=Object.keys(by); let i=0;
+  while(keys.some(k=>by[k].length)){ const k=keys[i++%keys.length]; if(by[k].length) out.push(by[k].shift()); }
+  return out;
+}
+function newBudget(){
+  const a=accuracy();
+  if(a===null) return 8;
+  if(a>0.92) return 10;     // too easy: add more new
+  if(a<0.75) return 3;      // too hard: consolidate
+  return 6;                 // near the ~85% band
+}
+function interleave(list){
+  // avoid same pack back-to-back where possible
+  const out=[], pool=list.slice();
+  while(pool.length){
+    const last=out[out.length-1];
+    let i=pool.findIndex(x=>!last || x.card.pack!==last.card.pack);
+    if(i<0) i=0;
+    out.push(pool.splice(i,1)[0]);
+  }
+  return out;
+}
+function pickDir(c){
+  if(c.kind==="hear") return "listen";
+  const p=S.p[c.id];
+  // once a "say" card is known, sometimes flip it: recognise it by ear too
+  if(p && p.box>=2 && Math.random()<0.35) return "listen";
+  return "speak";
+}
+function buildSession(){
+  const cap=S.set.perSession;
+  const due=dueCards().slice(0,cap);
+  const fresh=newCards().slice(0, Math.max(0, Math.min(newBudget(), cap-due.length)));
+  const items=shuffle(due.concat(fresh).map(c=>({card:c, dir:pickDir(c), isNew:!(S.p[c.id]&&S.p[c.id].seen)})));
+  return interleave(items);
+}
+
+// ───────── grading ─────────
+function grade(c, g){ // g: 0 missed, 1 rough, 2 nailed
+  const p=prog(c.id);
+  p.seen++;
+  if(g===0){ p.wrong++; p.box=0; p.due=startOfNextDay(1); }
+  else if(g===1){ p.right++; p.box=Math.max(1,Math.min(p.box,2)); p.due=startOfNextDay(1); }
+  else { p.right++; p.box=Math.min(p.box+1,5); p.due=startOfNextDay(INTERVAL[p.box]); }
+  S.recent.push(g>0?1:0); if(S.recent.length>60) S.recent.shift();
+  const k=dayKey(); S.log[k]=S.log[k]||{n:0,r:0}; S.log[k].n++; if(g>0) S.log[k].r++;
+  save();
+}
+
+// ───────── mission (real-life use) ─────────
+function mission(){
+  const k=dayKey();
+  if(S.mission.date!==k){
+    const pool=allCards().filter(c=>c.kind==="say" && packOn(c.pack) && S.p[c.id] && S.p[c.id].seen);
+    const pick=shuffle(pool.filter(c=>S.p[c.id].box<=2)).concat(shuffle(pool)).filter((c,i,a)=>a.indexOf(c)===i).slice(0,3);
+    const base = pick.length? pick : shuffle(CARDS.filter(c=>c.kind==="say" && ["food","survival","konbini","time"].includes(c.pack))).slice(0,3);
+    S.mission={date:k, ids:base.map(c=>c.id), done:[]}; save();
+  }
+  return S.mission;
+}
+
+// ───────── views ─────────
+let tab="home", session=null, bookPack="all", addMsg="";
+function render(){
+  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on", b.dataset.tab===tab));
+  $("#nav").classList.toggle("hidden", !!session);
+  if(session) return renderSession();
+  ({home:renderHome, book:renderBook, add:renderAdd, settings:renderSettings})[tab]();
+  window.scrollTo(0,0);
+}
+
+function renderHome(){
+  const due=dueCards().length, nw=Math.min(newBudget(), newCards().length);
+  const total=allCards().filter(c=>packOn(c.pack)).length;
+  const learned=allCards().filter(c=>packOn(c.pack)&&S.p[c.id]&&S.p[c.id].box>=2).length;
+  const a=accuracy(), m=mission();
+  const today=S.log[dayKey()]||{n:0};
+  $("#app").innerHTML = `
+    <h1 class="jp">墨 Sumi</h1>
+    <p class="sub">Say it out loud. Rough but understood counts.</p>
+    <h2>Today</h2>
+    <div class="card">
+      <div class="row between"><div><b style="font-size:20px">${due} review · ${nw} new</b><div class="sub">${today.n?`${today.n} answered today`:"Mixed: speaking, listening, replying"}</div></div></div>
+      <div class="stats">
+        <div class="stat"><b>${streak()}</b><span>day streak</span></div>
+        <div class="stat"><b>${a===null?"–":Math.round(a*100)+"%"}</b><span>recent (aim ~85)</span></div>
+        <div class="stat"><b>${learned}/${total}</b><span>solid</span></div>
+      </div>
+      <div style="margin-top:14px"><button class="btn" id="start" ${due+nw?"":"disabled"}>${due+nw?"Start practice":"All done for now"}</button></div>
+      ${due+nw?"":`<button class="btn ghost" id="extra" style="margin-top:8px">Practise anyway</button>`}
+    </div>
+    <h2>Use it for real today</h2>
+    <div class="card mission"><ul style="list-style:none;padding:0;margin:0">
+      ${m.ids.map(id=>{const c=byId(id); if(!c) return ""; return `<li><label><input type="checkbox" data-m="${id}" ${m.done.includes(id)?"checked":""}>
+        <span><span class="jp" style="font-size:18px">${esc(c.ja)}</span><br><span class="sub">${esc(c.en)}</span></span></label></li>`}).join("")}
+    </ul><p class="note">Say these to a real person today: staff, a shop, someone you meet. Getting the message across is the win.</p></div>
+    <h2>Packs</h2>
+    <div class="card" style="padding:6px 18px">
+      ${Object.keys(PACKS).filter(p=>p!=="mine"||S.mine.length).map(p=>{
+        const cs=allCards().filter(c=>c.pack===p), l=cs.filter(c=>S.p[c.id]&&S.p[c.id].box>=2).length;
+        return `<div class="pack"><div style="flex:1"><div>${PACKS[p]}</div><div class="sub" style="font-size:13px">${l}/${cs.length} solid</div><div class="bar"><i style="width:${cs.length?l/cs.length*100:0}%"></i></div></div>
+          <button class="toggle ${packOn(p)?"on":""}" data-pack="${p}" aria-label="toggle ${PACKS[p]}"></button></div>`;
+      }).join("")}
+    </div>`;
+  $("#start").onclick=()=>startSession(false);
+  if($("#extra")) $("#extra").onclick=()=>startSession(true);
+  document.querySelectorAll("[data-pack]").forEach(b=>b.onclick=()=>{ S.set.packs[b.dataset.pack]=!packOn(b.dataset.pack); save(); render(); });
+  document.querySelectorAll("[data-m]").forEach(b=>b.onchange=()=>{ const id=b.dataset.m; S.mission.done = b.checked ? S.mission.done.concat(id) : S.mission.done.filter(x=>x!==id); save(); });
+}
+
+function startSession(extra){
+  let items=buildSession();
+  if(extra || !items.length){
+    // nothing due: practise the weakest cards already seen
+    const seen=allCards().filter(c=>packOn(c.pack)&&S.p[c.id]&&S.p[c.id].seen).sort((a,b)=>S.p[a.id].box-S.p[b.id].box);
+    items=interleave(shuffle(seen.slice(0,12)).map(c=>({card:c,dir:pickDir(c),isNew:false})));
+  }
+  if(!items.length) return;
+  session={items, i:0, total:items.length, right:0, answered:0, missed:[], requeued:{}, st:null};
+  say(""); // unlock iOS speech inside the tap
+  render();
+}
+
+function renderSession(){
+  const s=session;
+  if(s.i>=s.items.length) return renderDone();
+  const it=s.items[s.i], c=it.card;
+  if(!s.st) s.st={hint:0, shown:false, picked:null, replyShown:false, opts:null};
+  const st=s.st;
+  const pct=s.i/s.items.length*100;
+  let body="";
+  if(it.dir==="speak"){
+    const chars=toHira(c.kana).replace(/[\s、。？！]/g,"");
+    const hints=[
+      `<small>Hint 1 · starts with</small><span class="jp">${esc(toHira(c.kana).trim().split(/\s+/)[0].slice(0,2))}…</span> <span class="sub">(${chars.length} kana)</span>`,
+      `<small>Hint 2 · key words</small>${esc(romaji(c.kana).split(" ").map((w,i)=>i%2? "___":w).join(" "))}`,
+      `<small>Hint 3 · full reading</small><span class="jp">${esc(c.kana)}</span>`,
+    ];
+    body = `
+      <span class="tag">Say it · ${PACKS[c.pack]}${it.isNew?" · new":""}</span>
+      <div class="prompt">${esc(c.en)}</div>
+      <p class="sub">Say it out loud first, then check.</p>
+      ${hints.slice(0,st.hint).map(h=>`<div class="hint">${h}</div>`).join("")}
+      ${st.shown?`
+        <div class="card" style="margin-top:14px">${jpBlock(c)}
+          <div class="row" style="margin-top:10px"><button class="play" id="p1">▶ Play</button><button class="play" id="p2">🐢 Slow</button></div>
+          ${c.note?`<p class="note">${esc(c.note)}</p>`:""}
+        </div>
+        ${c.ans?`<div class="reply"><small>What they might answer</small>${jpBlock(c.ans,"kana")}<div class="sub">${esc(c.ans.en)}</div>
+          <button class="play" id="p4" style="margin-top:8px">▶ Play answer</button></div>`:""}
+        <p class="sub" style="margin-top:12px">Say it once more along with the audio. How did you do?</p>
+        <div class="grade">
+          <button class="g0" data-g="0">Missed</button>
+          <button class="g1" data-g="1">Rough but<br>understood</button>
+          <button class="g2" data-g="2" ${st.hint>=2?"disabled style='opacity:.35'":""}>Nailed it</button>
+        </div>
+        ${st.hint>=2?`<p class="note">Used 2+ hints, so the best this round is "rough". It'll come back soon.</p>`:""}
+      `:`
+        <div class="row" style="margin-top:16px;gap:8px">
+          <button class="btn ghost" id="hint" ${st.hint>=3?"disabled":""} style="flex:1">${st.hint>=3?"No more hints":"Hint"}</button>
+          <button class="btn" id="reveal" style="flex:2">Check</button>
+        </div>`}
+    `;
+  } else {
+    if(!st.opts) st.opts=options(c);
+    const done=st.picked!==null;
+    const correct=done && st.picked===c.id;
+    body = `
+      <span class="tag">${c.kind==="hear"?"Someone says":"Listen"} · ${PACKS[c.pack]}${it.isNew?" · new":""}</span>
+      <button class="play huge" id="p1" aria-label="play">▶</button>
+      <div class="row" style="justify-content:center"><button class="play" id="p2">🐢 Slow</button>
+        ${done?"":`<button class="play" id="peek">Show text</button>`}</div>
+      ${st.peek&&!done?`<div class="center" style="margin-top:10px">${jpBlock(c,"kana")}</div>`:""}
+      <p class="sub center" style="margin-top:12px">${done?"":"What does it mean?"}</p>
+      <div class="opts">${st.opts.map(o=>`<button class="opt ${done&&o.id===c.id?"right":""} ${done&&st.picked===o.id&&o.id!==c.id?"wrong":""}" data-o="${o.id}" ${done?"disabled":""}>${esc(o.en)}</button>`).join("")}</div>
+      ${done?`
+        <div class="verdict ${correct?"good":"bad"}">${correct?"Got it.":"Not this time. It comes back later."}</div>
+        <div class="card" style="margin-top:10px">${jpBlock(c)}<div class="sub">${esc(c.en)}</div></div>
+        ${c.reply?`
+          <div class="reply">
+            <small>Your move: answer out loud, then check</small>
+            ${st.replyShown?`${jpBlock(c.reply,"kana")}<div class="sub">${esc(c.reply.en)}</div>
+              <button class="play" id="p3" style="margin-top:8px">▶ Play reply</button>`
+            :`<button class="btn ghost sm" id="showReply" style="margin-top:6px">Show a reply</button>`}
+          </div>`:""}
+        <div style="margin-top:16px"><button class="btn" id="next">Next</button></div>
+      `:""}
+    `;
+  }
+  $("#app").innerHTML = `
+    <div class="top"><button class="x" id="quit" aria-label="quit">✕</button><div class="bar"><i style="width:${pct}%"></i></div><span class="sub">${s.i+1}/${s.items.length}</span></div>
+    ${body}`;
+  window.scrollTo(0,0);
+  $("#quit").onclick=()=>{ session=null; render(); };
+  const play=()=>say(c.ja), slow=()=>say(c.ja,true);
+  if($("#p1")) $("#p1").onclick=play;
+  if($("#p2")) $("#p2").onclick=slow;
+  if($("#p3")) $("#p3").onclick=()=>say(c.reply.ja);
+  if($("#p4")) $("#p4").onclick=()=>say(c.ans.ja);
+  if($("#peek")) $("#peek").onclick=()=>{ st.peek=true; renderSession(); };
+  if($("#hint")) $("#hint").onclick=()=>{ st.hint++; renderSession(); };
+  if($("#reveal")) $("#reveal").onclick=()=>{ st.shown=true; renderSession(); say(c.ja); };
+  document.querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>{ const g=+b.dataset.g; finish(c,g); });
+  document.querySelectorAll("[data-o]").forEach(b=>b.onclick=()=>{
+    st.picked=b.dataset.o; const ok=st.picked===c.id;
+    st.pendingGrade = ok ? (st.peek?1:2) : 0;
+    renderSession();
+  });
+  if($("#showReply")) $("#showReply").onclick=()=>{ st.replyShown=true; renderSession(); say(c.reply.ja); };
+  if($("#next")) $("#next").onclick=()=>finish(c, st.pendingGrade);
+  // auto-play on first show of a listening card
+  if(it.dir==="listen" && !st.autoplayed){ st.autoplayed=true; play(); }
+}
+
+function options(c){
+  const pool=allCards().filter(x=>x.id!==c.id && x.en!==c.en);
+  const same=shuffle(pool.filter(x=>c.group && x.group===c.group));
+  const pack=shuffle(pool.filter(x=>x.pack===c.pack && !same.includes(x)));
+  const rest=shuffle(pool.filter(x=>!same.includes(x)&&!pack.includes(x)));
+  const picks=[]; for(const x of same.concat(pack,rest)){ if(picks.length>=3) break; if(!picks.some(p=>p.en===x.en)) picks.push(x); }
+  return shuffle(picks.concat(c));
+}
+
+function finish(c,g){
+  const s=session, it=s.items[s.i];
+  const retry = s.requeued[c.id]; // second go in the same session
+  grade(c,g);
+  s.answered++; if(g>0) s.right++;
+  if(g===0){
+    if(!s.missed.includes(c.id)) s.missed.push(c.id);
+    if(!retry){ // bring it back after a few other cards, flipped direction if it's a say-card
+      s.requeued[c.id]=true;
+      const pos=Math.min(s.i+5, s.items.length);
+      s.items.splice(pos,0,{card:c, dir: c.kind==="say" ? (it.dir==="speak"?"listen":"speak") : "listen", isNew:false, retry:true});
+    }
+  }
+  s.i++; s.st=null; render();
+}
+
+function renderDone(){
+  const s=session, pct=s.answered?Math.round(s.right/s.answered*100):0;
+  let msg = pct>=92 ? "Easy run. Next session adds more new phrases." : pct>=75 ? "Right in the sweet spot." : "Tough set. Next session goes lighter on new stuff.";
+  $("#app").innerHTML=`
+    <h1>Done</h1>
+    <div class="card">
+      <div style="font-size:40px;font-weight:700">${pct}%</div>
+      <div class="sub">${s.right} of ${s.answered} · ${msg}</div>
+    </div>
+    ${s.missed.length?`<h2>Coming back tomorrow</h2><div class="card"><ul class="miss" style="padding-left:18px;margin:0">
+      ${s.missed.map(id=>{const c=byId(id);return `<li><span class="jp">${esc(c.ja)}</span> <span class="sub">${esc(c.en)}</span></li>`}).join("")}</ul></div>`:""}
+    <div style="margin-top:16px" class="stack"><button class="btn" id="home">Back</button></div>`;
+  $("#home").onclick=()=>{ session=null; tab="home"; render(); };
+}
+
+function renderBook(){
+  const packs=Object.keys(PACKS).filter(p=>p!=="mine"||S.mine.length);
+  const list=allCards().filter(c=>bookPack==="all"||c.pack===bookPack);
+  $("#app").innerHTML=`
+    <h1>Phrasebook</h1><p class="sub">Tap to hear it. Works offline. Hold the phone up if you need to.</p>
+    <div class="chips" style="margin-top:14px">
+      <button class="chip ${bookPack==="all"?"on":""}" data-b="all">All</button>
+      ${packs.map(p=>`<button class="chip ${bookPack===p?"on":""}" data-b="${p}">${PACKS[p]}</button>`).join("")}
+    </div>
+    <div class="card" style="margin-top:12px;padding:4px 16px">
+      ${list.map(c=>{const p=S.p[c.id]; const l=p&&p.seen?(p.box>=2?"l2":"l1"):"";
+        return `<div class="phrase" data-say="${c.id}"><span class="dot ${l}"></span><div class="t">
+          <div class="ja jp">${esc(c.ja)}</div><div class="romaji" style="font-size:13px">${esc(romaji(c.kana))}</div><div class="en">${esc(c.en)}</div></div>
+          <span class="sub">▶</span></div>`}).join("")}
+    </div>`;
+  document.querySelectorAll("[data-b]").forEach(b=>b.onclick=()=>{bookPack=b.dataset.b; render();});
+  document.querySelectorAll("[data-say]").forEach(b=>b.onclick=()=>say(byId(b.dataset.say).ja));
+}
+
+function renderAdd(){
+  $("#app").innerHTML=`
+    <h1>Add a card</h1>
+    <p class="sub">Something you heard or couldn't say today. It joins your practice from the next session.</p>
+    <div class="card" style="margin-top:14px">
+      <div class="seg" id="kind"><button data-k="say" class="on">I want to say it</button><button data-k="hear">Someone said it</button></div>
+      <label class="f">English meaning</label><input type="text" id="en" placeholder="e.g. Is there a locker?">
+      <label class="f">Japanese</label><input type="text" id="ja" class="jp" placeholder="e.g. ロッカーはありますか。" lang="ja">
+      <label class="f">Reading in kana (optional, spaces between words)</label><input type="text" id="kana" class="jp" placeholder="ロッカー は あります か。" lang="ja">
+      <div class="row" style="margin-top:14px;gap:8px"><button class="btn ghost" id="test" style="flex:1">▶ Test</button><button class="btn" id="save" style="flex:2">Save card</button></div>
+      ${addMsg?`<p class="note" style="color:var(--good)">${esc(addMsg)}</p>`:""}
+      <p class="note">Tip: ask the person to type it on your phone, or copy it from Google Translate / a sign photo with Live Text.</p>
+    </div>
+    ${S.mine.length?`<h2>My cards</h2><div class="card" style="padding:4px 16px">${S.mine.map(c=>`
+      <div class="phrase"><div class="t" data-say="${c.id}"><div class="ja jp">${esc(c.ja)}</div><div class="en">${esc(c.en)}</div></div>
+      <button class="del" data-del="${c.id}">Delete</button></div>`).join("")}</div>`:""}`;
+  let kind="say";
+  document.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{kind=b.dataset.k; document.querySelectorAll("[data-k]").forEach(x=>x.classList.toggle("on",x===b));});
+  $("#test").onclick=()=>{ const j=$("#ja").value.trim(); if(j) say(j); };
+  $("#save").onclick=()=>{
+    const en=$("#en").value.trim(), ja=$("#ja").value.trim(); let kana=$("#kana").value.trim();
+    if(!en||!ja){ addMsg="Fill in English and Japanese."; return renderAdd(); }
+    if(!kana) kana = /^[぀-ヿ\s、。？ー]+$/.test(ja) ? ja : ja; // falls back to the Japanese as written
+    S.mine.push({id:"m"+Date.now(), pack:"mine", kind, en, ja, kana});
+    save(); addMsg="Saved. It'll show up in your next session."; renderAdd();
+  };
+  document.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{ S.mine=S.mine.filter(c=>c.id!==b.dataset.del); delete S.p[b.dataset.del]; save(); addMsg=""; renderAdd(); });
+  document.querySelectorAll("[data-say]").forEach(b=>b.onclick=()=>say(byId(b.dataset.say).ja));
+}
+
+function renderSettings(){
+  const vs = "speechSynthesis" in window ? pickVoice() : [];
+  $("#app").innerHTML=`
+    <h1>Settings</h1>
+    <div class="card">
+      <label class="f" style="margin-top:0">Japanese voice</label>
+      ${vs.length?`<select id="voice">${vs.map(v=>`<option ${voice&&v.name===voice.name?"selected":""}>${esc(v.name)}</option>`).join("")}</select>
+        <p class="note">For a better voice: iPhone Settings → Accessibility → Spoken Content → Voices → Japanese → download an "Enhanced" voice. Then pick it here.</p>`
+      :`<p class="note">No Japanese voice found. On iPhone: Settings → Accessibility → Spoken Content → Voices → Japanese, and download one.</p>`}
+      <label class="f">Speaking speed: <b id="rv">${S.set.rate.toFixed(2)}</b></label>
+      <input type="range" id="rate" min="0.5" max="1.2" step="0.05" value="${S.set.rate}" style="width:100%">
+      <button class="btn ghost" id="test" style="margin-top:10px">▶ Test: 今何時ですか。</button>
+    </div>
+    <div class="card" style="margin-top:12px;padding:6px 18px">
+      <div class="pack"><div style="flex:1">Show romaji</div><button class="toggle ${S.set.romaji?"on":""}" id="ro"></button></div>
+      <div class="pack"><div style="flex:1">Show kanji (with kana below)</div><button class="toggle ${S.set.kanji?"on":""}" id="kj"></button></div>
+      <div class="pack"><div style="flex:1">Cards per session</div>
+        <select id="per" style="width:auto">${[10,15,20,30].map(n=>`<option ${S.set.perSession===n?"selected":""}>${n}</option>`).join("")}</select></div>
+    </div>
+    <div class="card" style="margin-top:12px">
+      <p class="sub" style="margin-top:0">Your progress lives only on this phone, inside this home-screen app.</p>
+      <button class="btn ghost" id="reset" style="margin-top:10px;color:var(--bad)">Reset all progress</button>
+    </div>
+    <p class="note center">Sumi · works offline</p>`;
+  if($("#voice")) $("#voice").onchange=e=>{ S.set.voice=e.target.value; save(); pickVoice(); };
+  $("#rate").oninput=e=>{ S.set.rate=+e.target.value; $("#rv").textContent=S.set.rate.toFixed(2); save(); };
+  $("#test").onclick=()=>say("今何時ですか。");
+  $("#ro").onclick=()=>{ S.set.romaji=!S.set.romaji; save(); render(); };
+  $("#kj").onclick=()=>{ S.set.kanji=!S.set.kanji; save(); render(); };
+  $("#per").onchange=e=>{ S.set.perSession=+e.target.value; save(); };
+  $("#reset").onclick=()=>{ if(confirm("Reset all progress? Your own cards stay.")){ S.p={}; S.log={}; S.recent=[]; S.mission={date:"",ids:[],done:[]}; save(); render(); } };
+}
+
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{ tab=b.dataset.tab; addMsg=""; render(); });
+render();
+if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+</body>
+</html>
