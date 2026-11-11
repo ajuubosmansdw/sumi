@@ -127,7 +127,7 @@ const CARDS = [
   {"id":"q8","pack":"interview","kind":"say","en":"Where do you recommend in Tokyo?","ja":"東京でおすすめの場所はどこですか。","kana":"とうきょう で おすすめ の ばしょ は どこ です か。","group":"q","ans":{"ja":"浅草がおすすめです。","kana":"あさくさ が おすすめ です。","en":"I recommend Asakusa."}},
   {"id":"q9","pack":"interview","kind":"say","en":"Do you have siblings? (asking)","ja":"兄弟はいますか。","kana":"きょうだい は います か。","group":"q","ans":{"ja":"姉が一人います。","kana":"あね が ひとり います。","en":"I have one older sister."}},
   {"id":"q10","pack":"interview","kind":"say","en":"Do you come here often?","ja":"よくここに来ますか。","kana":"よく ここ に きます か。","group":"q","ans":{"ja":"たまに来ます。","kana":"たまに きます。","en":"Sometimes."}},
-  {"id":"x1","pack":"interview","kind":"say","en":"Oh, is that so.","ja":"へえ、そうなんですね。","kana":"へえ、そう なん です ね。","group":"react"},
+  {"id":"x1","pack":"interview","kind":"say","en":"Oh, is that so.","ja":"へえ、そうなんですね。","kana":"へえ、そう な ん です ね。","group":"react"},
   {"id":"x2","pack":"interview","kind":"say","en":"That's nice.","ja":"いいですね。","kana":"いい です ね。","group":"react"},
   {"id":"x3","pack":"interview","kind":"say","en":"That's amazing.","ja":"すごいですね。","kana":"すごい です ね。","group":"react"},
   {"id":"x4","pack":"interview","kind":"say","en":"Really?","ja":"本当ですか。","kana":"ほんとう です か。","group":"react"},
