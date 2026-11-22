@@ -266,12 +266,15 @@ function renderListen(){
     <div class="card" style="padding:4px 16px">
       ${COURSE.map((l,i)=>{ const d=S.lessons&&S.lessons[l.id];
         const q=S.lq&&S.lq[l.id];
-        return `<div class="phrase"><span class="dot ${d?"l2":""}"></span><div class="t" data-ls="${l.id}">
+        return `<div class="phrase"><button class="lcheck ${d?"on":""}" data-ldone="${l.id}" aria-label="${d?"Mark not done":"Mark done"}">${d?"✓":""}</button><div class="t" data-ls="${l.id}">
           <div style="font-weight:600">${i+1}. ${esc(l.title)}</div><div class="en">${esc(l.sub)}${d?` · done${d.n>1?` ${d.n}×`:""}`:""}</div></div>
           <button class="chip ${q>=80?"on":""}" data-lqz="${l.id}" style="flex:none">${q!=null?(q>=80?"✓ ":"")+"Quiz "+q+"%":"Quiz"}</button><span class="sub" data-ls="${l.id}" style="padding-left:6px">▶</span></div>`; }).join("")}
     </div>
     <button class="btn ghost" id="drill" style="margin-top:14px">Text drills (old practice)</button>`;
   document.querySelectorAll("[data-ls]").forEach(b=>b.onclick=()=>startLesson(COURSE.find(l=>l.id===b.dataset.ls)));
+  document.querySelectorAll("[data-ldone]").forEach(b=>b.onclick=e=>{ e.stopPropagation(); const id=b.dataset.ldone; S.lessons=S.lessons||{};
+    if(S.lessons[id]) delete S.lessons[id]; else S.lessons[id]={n:1, t:Date.now(), manual:1};
+    save(); renderListen(); });
   document.querySelectorAll("[data-lqz]").forEach(b=>b.onclick=()=>startLesson(buildQuiz(COURSE.find(l=>l.id===b.dataset.lqz))));
   if($("#mix")) $("#mix").onclick=()=>startLesson({id:"mix", title:"Daily mix", sub:"", steps:buildMix()});
   $("#drill").onclick=()=>{ tab="drill"; render(); };
