@@ -150,7 +150,7 @@ input[type=search]{width:100%;font:inherit;padding:11px 14px;border-radius:12px;
   <button data-tab="listen" class="on"><span class="ic">🎧</span>Listen</button>
   <button data-tab="kanji"><span class="ic">字</span>Kanji</button>
   <button data-tab="book"><span class="ic">📖</span>Library</button>
-  <button data-tab="add"><span class="ic">＋</span>Add</button>
+  <button data-tab="build"><span class="ic">🧩</span>Build</button>
   <button data-tab="settings"><span class="ic">⚙︎</span>Settings</button>
 </nav>
 <script src="cards.js"></script>
@@ -158,6 +158,7 @@ input[type=search]{width:100%;font:inherit;padding:11px 14px;border-radius:12px;
 <script src="kanji.js"></script>
 <script src="course.js"></script>
 <script src="listen.js"></script>
+<script src="build.js"></script>
 <script>
 "use strict";
 // ───────── storage ─────────
@@ -351,12 +352,12 @@ function mission(){
 // ───────── views ─────────
 let tab="listen", session=null, bookPack="all", addMsg="";
 function render(){
-  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on", b.dataset.tab===tab || (b.dataset.tab==="listen"&&tab==="drill")));
-  $("#nav").classList.toggle("hidden", !!session || !!kz || (!!LP && tab==="listen"));
+  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on", b.dataset.tab===tab || (b.dataset.tab==="listen"&&tab==="drill") || (b.dataset.tab==="book"&&tab==="add")));
+  $("#nav").classList.toggle("hidden", !!session || !!kz || (!!LP && tab==="listen") || (typeof bz!=="undefined" && !!bz && tab==="build"));
   if(LP && tab==="listen") return renderLP();
   if(kz) return renderKz();
   if(session) return renderSession();
-  ({listen:renderListen, drill:renderHome, home:renderHome, kanji:renderKanjiTab, book:renderBook, add:renderAdd, settings:renderSettings})[tab]();
+  ({build:renderBuild, listen:renderListen, drill:renderHome, home:renderHome, kanji:renderKanjiTab, book:renderBook, add:renderAdd, settings:renderSettings})[tab]();
   window.scrollTo(0,0);
 }
 
@@ -891,9 +892,10 @@ function renderBook(){
     body=`<div class="chips" style="margin-top:12px">${[["all","All"],["n5","N5"],["phrase","From my phrases"],["extra","Not N5"],["sign","Signs"]].map(([k,l])=>`<button class="chip ${kanjiTag===k?"on":""}" data-kt="${k}">${l}</button>`).join("")}</div>
       <div class="kgrid" style="margin-top:10px">${list.map(k=>`<button class="ktile" data-kj="${k.k}"><span class="dot ${progDot("k:"+k.k)}"></span><div class="kc jp">${k.k}</div><div class="km">${esc(k.m.split(",")[0])}</div></button>`).join("")}</div>`;
   }
-  $("#app").innerHTML=`<h1>Library</h1><p class="sub">Everything works offline.</p>
+  $("#app").innerHTML=`<div class="row between"><h1>Library</h1><button class="btn ghost sm" id="toAdd">＋ Add a card</button></div><p class="sub">Everything works offline.</p>
     <div class="seg" style="margin-top:14px">${segBtns}</div>${body}`;
   document.querySelectorAll("[data-lt]").forEach(b=>b.onclick=()=>{libTab=b.dataset.lt; render();});
+  $("#toAdd").onclick=()=>{ tab="add"; addMsg=""; render(); };
   document.querySelectorAll("[data-b]").forEach(b=>b.onclick=()=>{bookPack=b.dataset.b; render();});
   document.querySelectorAll("[data-wt]").forEach(b=>b.onclick=()=>{wordType=b.dataset.wt; render();});
   document.querySelectorAll("[data-kt]").forEach(b=>b.onclick=()=>{kanjiTag=b.dataset.kt; render();});
@@ -976,6 +978,7 @@ document.addEventListener("click", e=>{
 
 function renderAdd(){
   $("#app").innerHTML=`
+    <button class="chip" id="addBack" style="margin-top:6px">← Library</button>
     <h1>Add a card</h1>
     <p class="sub">Something you heard or couldn't say today. It joins your practice from the next session.</p>
     <div class="card" style="margin-top:14px">
@@ -990,6 +993,7 @@ function renderAdd(){
     ${S.mine.length?`<h2>My cards</h2><div class="card" style="padding:4px 16px">${S.mine.map(c=>`
       <div class="phrase"><div class="t" data-say="${c.id}"><div class="ja jp">${esc(c.ja)}</div><div class="en">${esc(c.en)}</div></div>
       <button class="del" data-del="${c.id}">Delete</button></div>`).join("")}</div>`:""}`;
+  $("#addBack").onclick=()=>{ tab="book"; render(); };
   let kind="say";
   document.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{kind=b.dataset.k; document.querySelectorAll("[data-k]").forEach(x=>x.classList.toggle("on",x===b));});
   $("#test").onclick=()=>{ const j=$("#ja").value.trim(); if(j) say(j); };
