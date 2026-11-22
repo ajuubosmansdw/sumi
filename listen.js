@@ -35,7 +35,7 @@ async function E(tok, text){ if(!alive(tok)) throw ABORT; LP.ui.speaker="en"; re
 async function J(tok, it, slow){ if(!alive(tok)) throw ABORT; LP.ui.speaker="ja"; LP.ui.shown=it; renderLP(); await speakP(ttsText(it),"ja",jaRate(slow)); if(!alive(tok)) throw ABORT; }
 async function TURN(tok, it, extra){ if(!alive(tok)) throw ABORT; const ms=turnMs(it,extra); LP.ui.speaker="you"; LP.ui.turnMs=ms; LP.ui.turnAt=Date.now(); renderLP(); await sleep(ms); if(!alive(tok)) throw ABORT; LP.ui.turnMs=0; }
 async function P(tok, ms){ await sleep(ms); if(!alive(tok)) throw ABORT; }
-function TAP(tok, q, opts){ if(!alive(tok)) throw ABORT; LP.ui.speaker="tap"; LP.ui.q=q; LP.ui.opts=opts; LP.ui.picked=null; renderLP();
+function TAP(tok, q, opts, kanaMap){ if(!alive(tok)) throw ABORT; LP.ui.speaker="tap"; LP.ui.q=q; LP.ui.opts=opts; LP.ui.optKana=kanaMap||null; LP.ui.picked=null; renderLP();
   return new Promise(res=>{ LP.tapResolve=v=>{ LP.tapResolve=null; res(v); }; }); }
 
 // ───────── lesson compile (adds spaced recalls inside a lesson) ─────────
@@ -81,6 +81,26 @@ function buildMix(){
   const out=[]; const keys=Object.keys(by); let i=0;
   while(keys.some(k=>by[k].length)){ const k=keys[i++%keys.length]; if(by[k].length) out.push(by[k].shift()); }
   return out;
+}
+
+// ───────── lesson quiz: ~8 questions from one lesson, mostly by ear ─────────
+function buildQuiz(lesson){
+  const L=lesson.steps.map(s=>Object.assign({_lid:lesson.id}, s));
+  const pools={
+    respond: shuffle(L.filter(s=>s.t==="hear"&&s.reply)).map(s=>({t:"respond", ref:s, _lid:lesson.id, id:"q-"+(s.ja)})),
+    hear:    shuffle(L.filter(s=>s.t==="hear")),
+    ask:     shuffle(L.filter(s=>s.t==="ask")),
+    qsay:    shuffle(L.filter(s=>(s.t==="new"||s.t==="build"||s.t==="say")&&s.en)).map(s=>({t:"qsay", ref:s, _lid:lesson.id})),
+    khear:   L.filter(s=>s.t==="kanji").map(s=>({t:"khear", ref:s, _lid:lesson.id})),
+  };
+  const caps={respond:2, hear:2, ask:3, qsay:3, khear:1}, out=[];
+  Object.keys(caps).forEach(k=>out.push(...pools[k].slice(0,caps[k])));
+  const rest=Object.keys(pools).flatMap(k=>pools[k].slice(caps[k]));
+  while(out.length<8 && rest.length) out.push(rest.shift());
+  // spread types out
+  const by={}; shuffle(out.slice(0,8)).forEach(s=>(by[s.t]=by[s.t]||[]).push(s));
+  const res=[]; const ks=Object.keys(by); let i=0; while(ks.some(k=>by[k].length)){ const k=ks[i++%ks.length]; if(by[k].length) res.push(by[k].shift()); }
+  return { id:"quiz:"+lesson.id, quizOf:lesson.id, title:"Quiz: "+lesson.title, sub:"", steps:res };
 }
 
 // ───────── steps → speech ─────────
@@ -142,6 +162,36 @@ async function playStep(st, tok){
       await J(tok, st);
       await E(tok, st.why+".");
       await P(tok, 1200); break; }
+    case "swapbase": {
+      LP.ui.title="Start sentence"; LP.ui.en=st.it.en; LP.ui.note=st.why;
+      await E(tok, "Here's your sentence: "+st.it.en);
+      await J(tok, st.it, true); await TURN(tok, st.it); await J(tok, st.it); await TURN(tok, st.it, -300);
+      break; }
+    case "swap": {
+      LP.ui.title="Change it"; LP.ui.cue=st.cue; LP.ui.en=st.it.en;
+      await E(tok, "Now: "+st.cue+".");
+      await TURN(tok, st.it, 1600);
+      await J(tok, st.it); await TURN(tok, st.it, -300);
+      lxMark(st, !LP.miss.has(missKey)); break; }
+    case "qsay": {
+      const it=st.ref; LP.ui.title="Say it"; LP.ui.en=it.en;
+      await E(tok, "Say: "+it.en.replace(/^(Ask|Answer)[^:]*:\s*/,""));
+      await TURN(tok, it, 900); await J(tok, it); await P(tok, 300);
+      const pick=await TAP(tok, "Did you get it?", ["Got it", "Missed it"]);
+      const ok=pick==="Got it"; LP.taps++; if(ok) LP.right++; else LP.miss.add(missKey);
+      LP.ui.picked=pick; LP.ui.correct="Got it"; renderLP(); await P(tok, 300);
+      lxMark(st, ok); break; }
+    case "respond": {
+      const h=st.ref; LP.ui.title="Respond";
+      await E(tok, "They say this. Pick the best reply.");
+      await J(tok, h);
+      const others=shuffle(COURSE.flatMap(l=>l.steps).filter(x=>x.t==="hear"&&x.reply&&x.reply.ja!==h.reply.ja).map(x=>x.reply)).filter((r,i,a)=>a.findIndex(y=>y.ja===r.ja)===i).slice(0,2);
+      const all=shuffle(others.concat(h.reply)); const km={}; all.forEach(r=>km[r.ja]=r.kana);
+      const pick=await TAP(tok, "Best reply?", all.map(r=>r.ja), km);
+      const ok=pick===h.reply.ja; LP.taps++; if(ok) LP.right++; else LP.miss.add(missKey);
+      LP.ui.picked=pick; LP.ui.correct=h.reply.ja; renderLP();
+      await E(tok, ok?"Right.":"The best reply:"); await J(tok, h.reply); await P(tok, 300);
+      lxMark(st, ok); break; }
     case "khear": {   // daily mix: hear a word, pick how it's written
       const k=st.ref; LP.ui.title="Which is written?";
       await E(tok, "Listen. Which one is it?");
@@ -169,15 +219,16 @@ async function runLP(){
 }
 function pauseLP(){ if(!LP) return; LP.playing=false; LP.token++; if(LP.tapResolve) LP.tapResolve=null; speechSynthesis.cancel(); keepAwake(false); renderLP(); }
 function startLesson(lesson){
-  const steps = lesson.id==="mix" ? lesson.steps : compileLesson(lesson);
-  LP={lesson, steps, si:0, token:0, playing:false, ui:{}, miss:new Set(), taps:0, right:0, slow:false, done:false};
+  const steps = COURSE.some(l=>l.id===lesson.id) ? compileLesson(lesson) : lesson.steps;
+  LP={lesson, steps, back: LP&&LP.back ? LP.back : (tab==="build"?"build":"listen"), si:0, token:0, playing:false, ui:{}, miss:new Set(), taps:0, right:0, slow:false, done:false};
   say("");   // unlock speech inside the tap
   render(); runLP();
 }
 function finishLP(){
   LP.done=true; LP.playing=false; keepAwake(false);
-  if(LP.lesson.id!=="mix"){ S.lessons=S.lessons||{}; const prev=S.lessons[LP.lesson.id]; S.lessons[LP.lesson.id]={n:(prev?prev.n:0)+1, t:Date.now()}; }
-  else S.mixDate=dayKey();
+  if(COURSE.some(l=>l.id===LP.lesson.id)){ S.lessons=S.lessons||{}; const prev=S.lessons[LP.lesson.id]; S.lessons[LP.lesson.id]={n:(prev?prev.n:0)+1, t:Date.now()}; }
+  else if(LP.lesson.id==="mix") S.mixDate=dayKey();
+  if(LP.lesson.quizOf){ S.lq=S.lq||{}; const pct=LP.taps?Math.round(LP.right/LP.taps*100):0; S.lq[LP.lesson.quizOf]=Math.max(S.lq[LP.lesson.quizOf]||0, pct); }
   const k=dayKey(); S.log[k]=S.log[k]||{n:0,r:0}; S.log[k].n+=LP.taps||1; S.log[k].r+=LP.right;
   save(); renderLP();
 }
@@ -214,11 +265,14 @@ function renderListen(){
     <h2>Lessons</h2>
     <div class="card" style="padding:4px 16px">
       ${COURSE.map((l,i)=>{ const d=S.lessons&&S.lessons[l.id];
-        return `<div class="phrase" data-ls="${l.id}"><span class="dot ${d?"l2":""}"></span><div class="t">
-          <div style="font-weight:600">${i+1}. ${esc(l.title)}</div><div class="en">${esc(l.sub)}${d?` · done${d.n>1?` ${d.n}×`:""}`:""}</div></div><span class="sub">▶</span></div>`; }).join("")}
+        const q=S.lq&&S.lq[l.id];
+        return `<div class="phrase"><span class="dot ${d?"l2":""}"></span><div class="t" data-ls="${l.id}">
+          <div style="font-weight:600">${i+1}. ${esc(l.title)}</div><div class="en">${esc(l.sub)}${d?` · done${d.n>1?` ${d.n}×`:""}`:""}</div></div>
+          <button class="chip ${q>=80?"on":""}" data-lqz="${l.id}" style="flex:none">${q!=null?(q>=80?"✓ ":"")+"Quiz "+q+"%":"Quiz"}</button><span class="sub" data-ls="${l.id}" style="padding-left:6px">▶</span></div>`; }).join("")}
     </div>
     <button class="btn ghost" id="drill" style="margin-top:14px">Text drills (old practice)</button>`;
   document.querySelectorAll("[data-ls]").forEach(b=>b.onclick=()=>startLesson(COURSE.find(l=>l.id===b.dataset.ls)));
+  document.querySelectorAll("[data-lqz]").forEach(b=>b.onclick=()=>startLesson(buildQuiz(COURSE.find(l=>l.id===b.dataset.lqz))));
   if($("#mix")) $("#mix").onclick=()=>startLesson({id:"mix", title:"Daily mix", sub:"", steps:buildMix()});
   $("#drill").onclick=()=>{ tab="drill"; render(); };
 }
@@ -229,19 +283,24 @@ function renderLP(){
   const L=LP, ui=L.ui||{};
   if(L.done){
     const miss=[...L.miss].map(id=>{ const st=L.steps.find(s=>itemId(s)===id); const it=st&&(st.ref||st); return it; }).filter(Boolean);
-    const nextL=COURSE[COURSE.findIndex(l=>l.id===L.lesson.id)+1];
+    const baseId=L.lesson.quizOf||L.lesson.id; const ix=COURSE.findIndex(l=>l.id===baseId); const nextL=ix>=0?COURSE[ix+1]:null;
     $("#app").innerHTML=`
-      <h1>${L.lesson.id==="mix"?"Mix done":"Lesson done"}</h1>
+      <h1>${L.lesson.id==="mix"?"Mix done":L.lesson.quizOf?"Quiz done":L.lesson.id==="swap"?"Drill done":"Lesson done"}</h1>
       <div class="card"><div style="font-size:20px;font-weight:700">${esc(L.lesson.title)}</div>
         <div class="sub">${L.taps?`Caught ${L.right} of ${L.taps} answers.`:"Nice."} ${miss.length?"The misses come back in your Daily mix.":""}</div></div>
       ${miss.length?`<h2>Worth another listen</h2><div class="card" style="padding:4px 16px">${miss.map(it=>`<div class="phrase"><div class="t"><div class="ja jp">${esc(it.ja)}</div><div class="en">${esc(it.en||"")}</div></div><button class="play" data-sayt="${esc(ttsText(it))}">▶</button></div>`).join("")}</div>`:""}
       <div class="stack" style="margin-top:16px">
-        ${nextL&&L.lesson.id!=="mix"?`<button class="btn" id="nextL">▶ Next: ${esc(nextL.title)}</button>`:""}
+        ${COURSE.some(l=>l.id===L.lesson.id)?`<button class="btn" id="takeQ">Take the quiz</button>`:""}
+        ${nextL?`<button class="btn ${COURSE.some(l=>l.id===L.lesson.id)?"ghost":""}" id="nextL">▶ Next: ${esc(nextL.title)}</button>`:""}
         <button class="btn ghost" id="again">Play again</button>
         <button class="btn ghost" id="back">Back</button></div>`;
     if($("#nextL")) $("#nextL").onclick=()=>startLesson(nextL);
-    $("#again").onclick=()=>startLesson(L.lesson.id==="mix"?{id:"mix",title:"Daily mix",sub:"",steps:buildMix()}:L.lesson);
-    $("#back").onclick=()=>{ LP=null; render(); };
+    if($("#takeQ")) $("#takeQ").onclick=()=>startLesson(buildQuiz(L.lesson));
+    $("#again").onclick=()=>{ if(L.lesson.id==="mix") startLesson({id:"mix",title:"Daily mix",sub:"",steps:buildMix()});
+      else if(L.lesson.quizOf) startLesson(buildQuiz(COURSE.find(l=>l.id===L.lesson.quizOf)));
+      else if(L.lesson.id==="swap"){ const f=L.lesson.frame||null; startLesson({ id:"swap", title:L.lesson.title, sub:"", frame:f, steps: swapSteps(f) }); }
+      else startLesson(L.lesson); };
+    $("#back").onclick=()=>{ const b=L.back; LP=null; tab=b; render(); };
     return;
   }
   const showText=!!S.set.lShow, it=ui.shown;
@@ -253,18 +312,19 @@ function renderLP(){
     <div class="row between"><span class="tag">${esc(ui.title||L.lesson.title)}</span><span class="sub" style="font-size:13px">${esc(L.lesson.title)}</span></div>
     <div class="lp-stage ${ui.speaker||""}">
       <div class="lp-who">${speakerLbl}</div>
+      ${ui.cue?`<div style="font-size:22px;font-weight:700;margin-top:10px">→ ${esc(ui.cue)}</div>`:""}
       ${ui.speaker==="you"?`<div class="lp-ring"><i style="animation-duration:${ui.turnMs}ms;animation-delay:-${Math.min(ui.turnMs,Date.now()-ui.turnAt)}ms"></i></div>`:""}
       ${ui.kanji?`<div class="jp" style="font-size:56px;font-weight:700;margin-top:8px">${esc(ui.kanji.ja)}</div>
         <div class="row" style="justify-content:center;gap:14px;flex-wrap:wrap">${[...ui.kanji.ja].filter(ch=>KANJI_BY[ch]).map(ch=>`<div class="center" data-kj="${ch}"><div class="jp" style="font-size:24px">${ch}</div><div class="sub" style="font-size:12px">${esc(KANJI_BY[ch].m.split(",")[0])}</div></div>`).join("")}</div>
         <div class="sub jp" style="margin-top:6px">${esc(ui.kanji.kana)} · ${esc(ui.kanji.en)}</div>`:""}
     </div>
-    ${showText?`<div class="card" style="margin-top:12px">
+    ${showText && (ui.en || ui.part || ui.note || (it && !(ui.speaker==="tap" && !ui.picked)))?`<div class="card" style="margin-top:12px">
         ${ui.en?`<div style="font-weight:600">${esc(ui.en)}</div>`:""}
         ${ui.part?`<div class="jp" style="font-size:20px;margin-top:6px">${esc(ui.part)}</div>`:""}
         ${it && !(ui.speaker==="tap" && !ui.picked)?`<div class="jp chipline" style="font-size:22px;margin-top:6px">${chips(it.ja,it.kana)}</div><div class="romaji">${esc(romaji(it.kana||it.ja))}</div>`:""}
         ${ui.note?`<p class="note">${esc(ui.note)}</p>`:""}
       </div>`:""}
-    ${opts.length?`<div class="opts" style="margin-top:12px">${opts.map(o=>`<button class="opt ${ui.picked&&o===ui.correct?"right":""} ${ui.picked===o&&o!==ui.correct?"wrong":""} ${/[一-鿿]/.test(o)?"jp optk":""}" data-lo="${esc(o)}" ${ui.picked?"disabled":""}>${esc(o)}</button>`).join("")}</div>
+    ${opts.length?`<div class="opts" style="margin-top:12px">${opts.map(o=>`<button class="opt ${ui.picked&&o===ui.correct?"right":""} ${ui.picked===o&&o!==ui.correct?"wrong":""} ${ui.optKana?"jp":/[一-鿿]/.test(o)?"jp optk":""}" data-lo="${esc(o)}" ${ui.picked?"disabled":""}>${esc(o)}${ui.optKana&&ui.optKana[o]&&S.set.romaji?`<div class="romaji" style="font-size:12px">${esc(romaji(ui.optKana[o]))}</div>`:""}</button>`).join("")}</div>
       ${ui.speaker==="tap"?`<div class="row" style="justify-content:center;margin-top:10px"><button class="play" id="rep1">▶ Again</button><button class="play" id="rep2">🐢 Slow</button></div>`:""}`:""}
     <div class="lp-controls">
       <button class="play" id="lback" aria-label="previous">⏮</button>
@@ -278,7 +338,7 @@ function renderLP(){
       ${ui.speaker==="you"?`<button class="chip" id="lmiss">${L.miss.has(itemId(ui.step||{}))?"Marked ✓":"✗ Didn't know it"}</button>`:""}
     </div>`;
   const restart=()=>{ pauseLP(); runLP(); renderLP(); };
-  $("#lq").onclick=()=>{ pauseLP(); LP=null; save(); render(); };
+  $("#lq").onclick=()=>{ const b=L.back; pauseLP(); LP=null; save(); tab=b; render(); };
   $("#lpp").onclick=()=>{ if(L.playing) pauseLP(); else { say(""); runLP(); } };
   $("#lrep").onclick=restart;
   $("#lskip").onclick=()=>{ L.si=Math.min(L.si+1, L.steps.length-1); restart(); };
