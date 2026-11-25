@@ -144,9 +144,14 @@ nav button{font-size:11px}
 .bigk{font-size:96px;font-weight:600;text-align:center;line-height:1.15;margin:10px 0}
 .hl{color:var(--good);font-weight:700}
 input[type=search]{width:100%;font:inherit;padding:11px 14px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+.asc{max-width:520px;margin:0 auto;padding:12px 16px 0}
+.asc .card{display:flex;align-items:center;gap:12px;padding:12px 14px}
+.asc .bar{height:4px;border-radius:2px;background:var(--soft);margin-top:6px;overflow:hidden}
+.asc .bar i{display:block;height:100%;background:var(--good)}
 </style>
 </head>
 <body>
+<div id="asc" class="asc hidden"></div>
 <main id="app"></main>
 <nav id="nav">
   <button data-tab="listen" class="on"><span class="ic">🎧</span>Listen</button>
@@ -354,6 +359,7 @@ function mission(){
 // ───────── views ─────────
 let tab="listen", session=null, bookPack="all", addMsg="";
 function render(){
+  if(typeof ascRender==="function") ascRender();
   document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on", b.dataset.tab===tab || (b.dataset.tab==="listen"&&tab==="drill") || (b.dataset.tab==="book"&&tab==="add")));
   $("#nav").classList.toggle("hidden", !!session || !!kz || (!!LP && tab==="listen") || (typeof bz!=="undefined" && !!bz && tab==="build"));
   if(LP && tab==="listen") return renderLP();
@@ -563,6 +569,7 @@ function finish(c,g){
 
 function renderDone(){
   const s=session, pct=s.answered?Math.round(s.right/s.answered*100):0;
+  if(!s.ascCounted){ s.ascCounted=true; ascAdd(s.answered); }
   let msg = pct>=92 ? "Easy run. Next session adds more new phrases." : pct>=75 ? "Right in the sweet spot." : "Tough set. Next session goes lighter on new stuff.";
   $("#app").innerHTML=`
     <h1>Done</h1>
@@ -845,6 +852,7 @@ function renderKzDone(){
   const z=kz; kzCommit();
   const tot=Object.values(z.res).reduce((a,[r,w])=>[a[0]+r,a[1]+w],[0,0]);
   const pct=tot[0]+tot[1]?Math.round(tot[0]/(tot[0]+tot[1])*100):0;
+  if(!z.ascCounted){ z.ascCounted=true; ascAdd(tot[0]+tot[1]); }
   $("#app").innerHTML=`
     <h1>${z.mode==="learn"?"Learned":"Quiz done"}</h1>
     <div class="card"><div style="font-size:40px;font-weight:700">${pct}%</div>
@@ -1072,6 +1080,43 @@ function renderSettings(){
 }
 
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{ tab=b.dataset.tab; addMsg=""; render(); });
+// ───────── Ascension unlock ─────────
+// Ascension (the routine app) opens Sumi with ?ascension=<return url>&code=<one-time code>&min=<answers>.
+// Finish practice or a kanji quiz with enough answers, then "Back to Ascension" unlocks the app there.
+const ASC_KEY="sumi.asc";
+function ascGet(){ try{ const a=JSON.parse(localStorage.getItem(ASC_KEY)); if(a && Date.now()-a.at < 90*60e3) return a; }catch(e){} try{ localStorage.removeItem(ASC_KEY); }catch(e){} return null; }
+function ascSet(a){ try{ a?localStorage.setItem(ASC_KEY, JSON.stringify(a)):localStorage.removeItem(ASC_KEY); }catch(e){} ascRender(); }
+function ascTrusted(u){ // only send the code back to Ascension on the same parent domain
+  try{ const r=new URL(u), here=location.hostname, tail=h=>h.split(".").slice(-2).join(".");
+    if(r.pathname!=="/sumi/return") return false;
+    const local=h=>h==="localhost"||h==="127.0.0.1";
+    if(local(here)) return local(r.hostname);
+    return r.protocol==="https:" && tail(r.hostname)===tail(here);
+  }catch(e){ return false; } }
+(function ascInit(){
+  const q=new URLSearchParams(location.search), ret=q.get("ascension"), code=q.get("code");
+  if(!ret||!code) return;
+  if(ascTrusted(ret)) ascSet({ret, code, min:Math.max(1, +q.get("min")||8), n:0, at:Date.now()});
+  history.replaceState(null, "", location.pathname);
+})();
+function ascAdd(n){ const a=ascGet(); if(!a||!n) return; a.n+=n; ascSet(a); }
+function ascBack(){ const a=ascGet(); if(!a||a.n<a.min) return; ascSet(null);
+  location.href=a.ret+"?"+new URLSearchParams({code:a.code, n:a.n}); }
+function ascRender(){
+  const el=$("#asc"), a=ascGet(); if(!el) return;
+  const busy=(typeof LP!=="undefined" && LP && !LP.done) || (session && session.i<session.items.length)
+    || (kz && kz.items && kz.i<kz.items.length); // stay out of the way mid-quiz
+  el.classList.toggle("hidden", !a || !!busy); if(!a || busy) return;
+  const ok=a.n>=a.min, pct=Math.min(100, Math.round(a.n/a.min*100));
+  el.innerHTML=`<div class="card"><div style="flex:1;min-width:0">
+      <div style="font-size:14px;font-weight:600">${ok?"Ready to unlock":"Ascension unlock"}</div>
+      <div class="sub" style="font-size:13px">${ok?"Your quiz counts":`Practice or quiz · ${a.n}/${a.min} answers`}</div>
+      ${ok?"":`<div class="bar"><i style="width:${pct}%"></i></div>`}</div>
+    ${ok?`<button class="btn sm" id="ascBack" style="width:auto;padding:10px 14px">Back to Ascension</button>`:`<button class="play" id="ascX" aria-label="Cancel">✕</button>`}</div>`;
+  if($("#ascBack")) $("#ascBack").onclick=ascBack;
+  if($("#ascX")) $("#ascX").onclick=()=>ascSet(null);
+}
+ascRender();
 render();
 if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>

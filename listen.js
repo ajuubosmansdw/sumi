@@ -228,6 +228,7 @@ function finishLP(){
   LP.done=true; LP.playing=false; keepAwake(false);
   if(COURSE.some(l=>l.id===LP.lesson.id)){ S.lessons=S.lessons||{}; const prev=S.lessons[LP.lesson.id]; S.lessons[LP.lesson.id]={n:(prev?prev.n:0)+1, t:Date.now()}; }
   else if(LP.lesson.id==="mix") S.mixDate=dayKey();
+  if((LP.lesson.quizOf||LP.lesson.id==="mix"||LP.lesson.id==="swap") && typeof ascAdd==="function") ascAdd(LP.taps);
   if(LP.lesson.quizOf){ S.lq=S.lq||{}; const pct=LP.taps?Math.round(LP.right/LP.taps*100):0; S.lq[LP.lesson.quizOf]=Math.max(S.lq[LP.lesson.quizOf]||0, pct); }
   const k=dayKey(); S.log[k]=S.log[k]||{n:0,r:0}; S.log[k].n+=LP.taps||1; S.log[k].r+=LP.right;
   save(); renderLP();
